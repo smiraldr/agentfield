@@ -145,6 +145,31 @@ Note that Infron reports native cost at the top level of the body (and of the
 final stream chunk) rather than nested under `usage.cost`. The SDK normalizes
 both shapes into `Usage.Cost`, so cost tracking reads the same either way.
 
+### IO Intelligence (io.net) Configuration
+
+IO Intelligence is an OpenAI-compatible Chat Completions endpoint that serves
+Hugging Face-style `org/name` model ids, so wiring it up is a base URL and a
+model id:
+
+```go
+aiConfig := &ai.Config{
+    APIKey:  os.Getenv("IONET_API_KEY"),
+    BaseURL: "https://api.intelligence.io.solutions/api/v1",
+    Model:   "meta-llama/Llama-3.3-70B-Instruct", // id as returned by GET /models
+}
+```
+
+`ai.DefaultConfig()` picks this up from `IONET_API_KEY` automatically. A key
+from a provider already configured in the environment keeps precedence.
+
+An `ionet/` model prefix is accepted as a routing marker for callers that
+select the gateway by model string, and is stripped before the request goes
+out (the endpoint serves the bare id):
+
+```go
+Model: "ionet/meta-llama/Llama-3.3-70B-Instruct"  // sent as meta-llama/Llama-3.3-70B-Instruct
+```
+
 ### Rate Limiting & Circuit Breaker
 
 The client can automatically retry rate-limited AI calls (HTTP 429/503, or

@@ -12,6 +12,11 @@ import (
 // refer to the same service, so grepping for either one should land here.
 const defaultInfronBaseURL = "https://llm.onerouter.pro/v1"
 
+// defaultIonetBaseURL is IO Intelligence (io.net)'s OpenAI-compatible
+// Chat Completions endpoint. Model ids are Hugging Face-style `org/name`
+// strings, e.g. "meta-llama/Llama-3.3-70B-Instruct".
+const defaultIonetBaseURL = "https://api.intelligence.io.solutions/api/v1"
+
 // Config holds AI/LLM configuration for making API calls.
 type Config struct {
 	// API Key for OpenAI or OpenRouter
@@ -21,6 +26,7 @@ type Config struct {
 	// Default: https://api.openai.com/v1
 	// OpenRouter: https://openrouter.ai/api/v1
 	// Infron: https://llm.onerouter.pro/v1
+	// IO Intelligence (io.net): https://api.intelligence.io.solutions/api/v1
 	BaseURL string
 
 	// Default model to use (e.g., "gpt-4o", "openai/gpt-4o" for OpenRouter)
@@ -61,6 +67,7 @@ type Config struct {
 // It reads from environment variables:
 // - OPENAI_API_KEY or OPENROUTER_API_KEY
 // - INFRON_API_KEY
+// - IONET_API_KEY
 // - AI_BASE_URL (defaults to OpenAI)
 // - AI_MODEL (defaults to gpt-4o)
 //
@@ -78,6 +85,15 @@ func DefaultConfig() *Config {
 	if infronKey := os.Getenv("INFRON_API_KEY"); infronKey != "" && apiKey == "" {
 		apiKey = infronKey
 		baseURL = defaultInfronBaseURL
+	}
+
+	// Check for IO Intelligence (io.net) configuration, with the same
+	// precedence rule: a key from a provider already configured in the
+	// environment keeps precedence, so adding IONET_API_KEY never silently
+	// reroutes an existing deployment.
+	if ionetKey := os.Getenv("IONET_API_KEY"); ionetKey != "" && apiKey == "" {
+		apiKey = ionetKey
+		baseURL = defaultIonetBaseURL
 	}
 
 	// Check for OpenRouter configuration
@@ -145,6 +161,17 @@ func (c *Config) IsOpenRouter() bool {
 func (c *Config) IsInfron() bool {
 	return strings.Contains(strings.ToLower(c.BaseURL), "onerouter.pro") ||
 		strings.HasPrefix(strings.ToLower(c.Model), infronModelPrefix)
+}
+
+// IsIonet returns true if the base URL is for IO Intelligence (io.net).
+//
+// IO Intelligence serves bare Hugging Face-style `org/name` model ids, so an
+// explicit "ionet/" prefix is the only thing that distinguishes it by model
+// alone, and a config that matches a gateway already supported keeps its
+// previous meaning.
+func (c *Config) IsIonet() bool {
+	return strings.Contains(strings.ToLower(c.BaseURL), "intelligence.io.solutions") ||
+		strings.HasPrefix(strings.ToLower(c.Model), ionetModelPrefix)
 }
 
 // RateLimitEnabled reports whether automatic rate-limit retries are configured.
