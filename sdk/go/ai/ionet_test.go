@@ -43,8 +43,7 @@ func TestDefaultConfigIonet(t *testing.T) {
 	}
 
 	t.Run("ionet only", func(t *testing.T) {
-		os.Setenv("IONET_API_KEY", "test-ionet-key")
-		t.Cleanup(func() { os.Unsetenv("IONET_API_KEY") })
+		t.Setenv("IONET_API_KEY", "test-ionet-key")
 
 		cfg := DefaultConfig()
 		require.NotNil(t, cfg)
@@ -55,12 +54,8 @@ func TestDefaultConfigIonet(t *testing.T) {
 	})
 
 	t.Run("ionet only, AI_MODEL wins over the io.net default", func(t *testing.T) {
-		os.Setenv("IONET_API_KEY", "test-ionet-key")
-		os.Setenv("AI_MODEL", "deepseek-ai/DeepSeek-R1-0528")
-		t.Cleanup(func() {
-			os.Unsetenv("IONET_API_KEY")
-			os.Unsetenv("AI_MODEL")
-		})
+		t.Setenv("IONET_API_KEY", "test-ionet-key")
+		t.Setenv("AI_MODEL", "deepseek-ai/DeepSeek-R1-0528")
 
 		cfg := DefaultConfig()
 		require.NotNil(t, cfg)
@@ -69,9 +64,8 @@ func TestDefaultConfigIonet(t *testing.T) {
 	})
 
 	t.Run("openai keeps precedence over ionet", func(t *testing.T) {
-		os.Setenv("OPENAI_API_KEY", "openai-key")
-		os.Setenv("IONET_API_KEY", "test-ionet-key")
-		t.Cleanup(func() { os.Unsetenv("OPENAI_API_KEY"); os.Unsetenv("IONET_API_KEY") })
+		t.Setenv("OPENAI_API_KEY", "openai-key")
+		t.Setenv("IONET_API_KEY", "test-ionet-key")
 
 		cfg := DefaultConfig()
 		require.NotNil(t, cfg)
@@ -80,9 +74,8 @@ func TestDefaultConfigIonet(t *testing.T) {
 	})
 
 	t.Run("infron keeps precedence over ionet", func(t *testing.T) {
-		os.Setenv("INFRON_API_KEY", "infron-key")
-		os.Setenv("IONET_API_KEY", "test-ionet-key")
-		t.Cleanup(func() { os.Unsetenv("INFRON_API_KEY"); os.Unsetenv("IONET_API_KEY") })
+		t.Setenv("INFRON_API_KEY", "infron-key")
+		t.Setenv("IONET_API_KEY", "test-ionet-key")
 
 		cfg := DefaultConfig()
 		require.NotNil(t, cfg)
@@ -91,9 +84,8 @@ func TestDefaultConfigIonet(t *testing.T) {
 	})
 
 	t.Run("openrouter keeps precedence over ionet", func(t *testing.T) {
-		os.Setenv("OPENROUTER_API_KEY", "openrouter-key")
-		os.Setenv("IONET_API_KEY", "test-ionet-key")
-		t.Cleanup(func() { os.Unsetenv("OPENROUTER_API_KEY"); os.Unsetenv("IONET_API_KEY") })
+		t.Setenv("OPENROUTER_API_KEY", "openrouter-key")
+		t.Setenv("IONET_API_KEY", "test-ionet-key")
 
 		cfg := DefaultConfig()
 		require.NotNil(t, cfg)
@@ -102,9 +94,8 @@ func TestDefaultConfigIonet(t *testing.T) {
 	})
 
 	t.Run("ai base url overrides ionet default", func(t *testing.T) {
-		os.Setenv("IONET_API_KEY", "test-ionet-key")
-		os.Setenv("AI_BASE_URL", "https://custom.example.com/v1")
-		t.Cleanup(func() { os.Unsetenv("IONET_API_KEY"); os.Unsetenv("AI_BASE_URL") })
+		t.Setenv("IONET_API_KEY", "test-ionet-key")
+		t.Setenv("AI_BASE_URL", "https://custom.example.com/v1")
 
 		cfg := DefaultConfig()
 		require.NotNil(t, cfg)
@@ -117,9 +108,8 @@ func TestDefaultConfigIonet(t *testing.T) {
 	})
 
 	t.Run("io.net base url with trailing slash still gets the io.net default", func(t *testing.T) {
-		os.Setenv("IONET_API_KEY", "test-ionet-key")
-		os.Setenv("AI_BASE_URL", defaultIonetBaseURL+"/")
-		t.Cleanup(func() { os.Unsetenv("IONET_API_KEY"); os.Unsetenv("AI_BASE_URL") })
+		t.Setenv("IONET_API_KEY", "test-ionet-key")
+		t.Setenv("AI_BASE_URL", defaultIonetBaseURL+"/")
 
 		cfg := DefaultConfig()
 		require.NotNil(t, cfg)
@@ -203,6 +193,42 @@ func TestMarshalRequestLeavesIonetBareModelAlone(t *testing.T) {
 	var wire map[string]any
 	require.NoError(t, json.Unmarshal(body, &wire))
 	assert.Equal(t, "meta-llama/Llama-3.3-70B-Instruct", wire["model"])
+}
+
+// Tool fields are orthogonal to the io.net routing marker: they must reach
+// the wire unchanged alongside the stripped model id.
+func TestMarshalRequestIonetKeepsTools(t *testing.T) {
+	client, err := NewClient(&Config{
+		APIKey:  "k",
+		BaseURL: defaultIonetBaseURL,
+		Model:   "meta-llama/Llama-3.3-70B-Instruct",
+	})
+	require.NoError(t, err)
+
+	tools := []ToolDefinition{{
+		Type: "function",
+		Function: ToolFunction{
+			Name:        "get_weather",
+			Description: "Get the current weather",
+			Parameters:  map[string]interface{}{"type": "object"},
+		},
+	}}
+	req := &Request{
+		Model:      "ionet/meta-llama/Llama-3.3-70B-Instruct",
+		Tools:      tools,
+		ToolChoice: "auto",
+	}
+	body, err := client.marshalRequest(req)
+	require.NoError(t, err)
+
+	var wire map[string]any
+	require.NoError(t, json.Unmarshal(body, &wire))
+	assert.Equal(t, "meta-llama/Llama-3.3-70B-Instruct", wire["model"])
+	assert.Len(t, wire["tools"], 1)
+	assert.Equal(t, "auto", wire["tool_choice"])
+
+	// The caller's Request must not be mutated.
+	assert.Equal(t, "ionet/meta-llama/Llama-3.3-70B-Instruct", req.Model)
 }
 
 // io.net reports usage in the standard Chat Completions shape, so no gateway
