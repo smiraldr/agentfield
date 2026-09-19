@@ -170,9 +170,10 @@ custom `AI_BASE_URL` the SDK cannot recognize as io.net (a proxy), set
 `AI_MODEL` yourself.
 
 An `ionet/` model prefix is accepted as a routing marker for callers that
-select the gateway by model string; when the configuration points at io.net,
-the marker is stripped before the request goes out (the endpoint serves the
-bare id):
+select the gateway by model string, and is stripped before the request goes
+out (the endpoint serves the bare id). The marker rewrites the model string
+only — it never reroutes a request on its own, so with a higher-precedence
+provider key set the request still goes to that provider's endpoint:
 
 ```go
 Model: "ionet/meta-llama/Llama-3.3-70B-Instruct"  // sent as meta-llama/Llama-3.3-70B-Instruct
