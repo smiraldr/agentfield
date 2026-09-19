@@ -50,7 +50,23 @@ func TestDefaultConfigIonet(t *testing.T) {
 		require.NotNil(t, cfg)
 		assert.Equal(t, "test-ionet-key", cfg.APIKey)
 		assert.Equal(t, defaultIonetBaseURL, cfg.BaseURL)
-		assert.Equal(t, "gpt-4o", cfg.Model)
+		// io.net has no gpt-family models, so the default must be an
+		// io.net id, not the global gpt-4o fallback.
+		assert.Equal(t, defaultIonetModel, cfg.Model)
+	})
+
+	t.Run("ionet only, AI_MODEL wins over the io.net default", func(t *testing.T) {
+		os.Setenv("IONET_API_KEY", "test-ionet-key")
+		os.Setenv("AI_MODEL", "deepseek-ai/DeepSeek-R1-0528")
+		t.Cleanup(func() {
+			os.Unsetenv("IONET_API_KEY")
+			os.Unsetenv("AI_MODEL")
+		})
+
+		cfg := DefaultConfig()
+		require.NotNil(t, cfg)
+		assert.Equal(t, defaultIonetBaseURL, cfg.BaseURL)
+		assert.Equal(t, "deepseek-ai/DeepSeek-R1-0528", cfg.Model)
 	})
 
 	t.Run("openai keeps precedence over ionet", func(t *testing.T) {

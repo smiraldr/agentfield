@@ -69,10 +69,10 @@ type Config struct {
 // - INFRON_API_KEY
 // - IONET_API_KEY
 // - AI_BASE_URL (defaults to OpenAI)
-// - AI_MODEL (defaults to gpt-4o)
+// - AI_MODEL (defaults to gpt-4o, or to an io.net model for IO Intelligence)
 //
-// A gateway key that was already honored before Infron existed keeps
-// precedence, so adding an Infron key to an existing environment never
+// A provider key that was already honored keeps precedence, so adding a
+// gateway key (Infron, IO Intelligence) to an existing environment never
 // silently reroutes it.
 func DefaultConfig() *Config {
 	apiKey := os.Getenv("OPENAI_API_KEY")
@@ -110,6 +110,11 @@ func DefaultConfig() *Config {
 	model := os.Getenv("AI_MODEL")
 	if model == "" {
 		model = "gpt-4o"
+		// io.net's catalog is exclusively Hugging Face-style org/name ids,
+		// so the gpt-4o fallback would 404 there.
+		if baseURL == defaultIonetBaseURL {
+			model = defaultIonetModel
+		}
 	}
 
 	cfg := &Config{

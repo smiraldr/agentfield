@@ -153,14 +153,19 @@ model id:
 
 ```go
 aiConfig := &ai.Config{
-    APIKey:  os.Getenv("IONET_API_KEY"),
-    BaseURL: "https://api.intelligence.io.solutions/api/v1",
-    Model:   "meta-llama/Llama-3.3-70B-Instruct", // id as returned by GET /models
+    APIKey:      os.Getenv("IONET_API_KEY"),
+    BaseURL:     "https://api.intelligence.io.solutions/api/v1",
+    Model:       "meta-llama/Llama-3.3-70B-Instruct", // id as returned by GET /models
+    Temperature: 0.7,
+    MaxTokens:   4096,
 }
 ```
 
 `ai.DefaultConfig()` picks this up from `IONET_API_KEY` automatically. A key
-from a provider already configured in the environment keeps precedence.
+from a provider already configured in the environment keeps precedence. With
+no `AI_MODEL` set, the default falls back to
+`meta-llama/Llama-3.3-70B-Instruct` — io.net's catalog has no gpt-family
+models — so an io.net-only environment works out of the box.
 
 An `ionet/` model prefix is accepted as a routing marker for callers that
 select the gateway by model string, and is stripped before the request goes

@@ -6,6 +6,12 @@ import "strings"
 // stripped before the request goes out; see stripIonetPrefix.
 const ionetModelPrefix = "ionet/"
 
+// defaultIonetModel is the model DefaultConfig falls back to when
+// IONET_API_KEY is the selected provider and AI_MODEL is unset. io.net's
+// catalog is exclusively Hugging Face-style org/name ids, so the global
+// gpt-4o fallback would 404 there.
+const defaultIonetModel = "meta-llama/Llama-3.3-70B-Instruct"
+
 // stripIonetPrefix removes the routing-only "ionet/" prefix from a model
 // name. IO Intelligence serves bare Hugging Face-style `org/name` ids, so
 // the marker must not reach the wire.
