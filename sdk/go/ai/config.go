@@ -19,7 +19,8 @@ const defaultIonetBaseURL = "https://api.intelligence.io.solutions/api/v1"
 
 // Config holds AI/LLM configuration for making API calls.
 type Config struct {
-	// API Key for OpenAI or OpenRouter
+	// API Key for the selected provider: OpenAI, Infron,
+	// IO Intelligence (io.net), or OpenRouter
 	APIKey string
 
 	// BaseURL can be either OpenAI or OpenRouter endpoint

@@ -165,7 +165,9 @@ aiConfig := &ai.Config{
 from a provider already configured in the environment keeps precedence. With
 no `AI_MODEL` set, the default falls back to
 `meta-llama/Llama-3.3-70B-Instruct` — io.net serves no `gpt-4o` — so an
-io.net-only environment works out of the box. If you route io.net through a
+io.net-only environment works out of the box. io.net rotates its catalog, so
+if that id is ever retired, set `AI_MODEL` to any current id from
+`GET /models` on the base URL. If you route io.net through a
 custom `AI_BASE_URL` the SDK cannot recognize as io.net (a proxy), set
 `AI_MODEL` yourself.
 
