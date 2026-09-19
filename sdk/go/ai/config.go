@@ -108,13 +108,9 @@ func DefaultConfig() *Config {
 	}
 
 	model := os.Getenv("AI_MODEL")
-	if model == "" {
+	modelDefaulted := model == ""
+	if modelDefaulted {
 		model = "gpt-4o"
-		// io.net's catalog is exclusively Hugging Face-style org/name ids,
-		// so the gpt-4o fallback would 404 there.
-		if baseURL == defaultIonetBaseURL {
-			model = defaultIonetModel
-		}
 	}
 
 	cfg := &Config{
@@ -133,6 +129,15 @@ func DefaultConfig() *Config {
 		}
 	case cfg.IsInfron():
 		cfg.SiteURL, cfg.SiteName, _ = resolveInfronAttribution("", "")
+	}
+	if modelDefaulted && cfg.IsIonet() {
+		// The catalog behind the io.net endpoint serves no gpt-4o (its ids
+		// are HF-style org/name, e.g. openai/gpt-oss-120b), so the global
+		// fallback would 404 there. IsIonet() is the same predicate the
+		// request path uses, so a base URL that merely spells the endpoint
+		// differently (trailing slash, case) still gets the io.net default.
+		// An explicit AI_MODEL always wins.
+		cfg.Model = defaultIonetModel
 	}
 	return cfg
 }

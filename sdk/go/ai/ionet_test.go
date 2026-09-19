@@ -50,8 +50,7 @@ func TestDefaultConfigIonet(t *testing.T) {
 		require.NotNil(t, cfg)
 		assert.Equal(t, "test-ionet-key", cfg.APIKey)
 		assert.Equal(t, defaultIonetBaseURL, cfg.BaseURL)
-		// io.net has no gpt-family models, so the default must be an
-		// io.net id, not the global gpt-4o fallback.
+		// io.net serves no gpt-4o, so the default must be an io.net id.
 		assert.Equal(t, defaultIonetModel, cfg.Model)
 	})
 
@@ -111,6 +110,23 @@ func TestDefaultConfigIonet(t *testing.T) {
 		require.NotNil(t, cfg)
 		assert.Equal(t, "test-ionet-key", cfg.APIKey)
 		assert.Equal(t, "https://custom.example.com/v1", cfg.BaseURL)
+		// A custom base URL the SDK cannot recognize as io.net keeps the
+		// global default; route through a proxy and set AI_MODEL yourself.
+		assert.False(t, cfg.IsIonet())
+		assert.Equal(t, "gpt-4o", cfg.Model)
+	})
+
+	t.Run("io.net base url with trailing slash still gets the io.net default", func(t *testing.T) {
+		os.Setenv("IONET_API_KEY", "test-ionet-key")
+		os.Setenv("AI_BASE_URL", defaultIonetBaseURL+"/")
+		t.Cleanup(func() { os.Unsetenv("IONET_API_KEY"); os.Unsetenv("AI_BASE_URL") })
+
+		cfg := DefaultConfig()
+		require.NotNil(t, cfg)
+		assert.True(t, cfg.IsIonet())
+		// Same detection as the request path: the model default must not
+		// depend on spelling the URL byte-identically.
+		assert.Equal(t, defaultIonetModel, cfg.Model)
 	})
 }
 
@@ -208,23 +224,28 @@ func TestMarshalRequestAddsNoUsageIncludeForIonet(t *testing.T) {
 	assert.False(t, hasUsage, "usage opt-in leaked onto io.net request: %s", body)
 }
 
-// io.net is not a vouched max_completion_tokens endpoint, and HF-style ids
-// never match the legacy-OpenAI heuristics, so max_tokens must be kept.
+// io.net is not a vouched max_completion_tokens endpoint, so max_tokens is
+// kept even for ids (openai/gpt-oss-*) that the legacy-OpenAI heuristics
+// would otherwise rewrite.
 func TestMarshalRequestIonetKeepsMaxTokens(t *testing.T) {
-	client, err := NewClient(&Config{
-		APIKey:  "k",
-		BaseURL: defaultIonetBaseURL,
-		Model:   "meta-llama/Llama-3.3-70B-Instruct",
-	})
-	require.NoError(t, err)
+	for _, model := range []string{"meta-llama/Llama-3.3-70B-Instruct", "openai/gpt-oss-120b"} {
+		t.Run(model, func(t *testing.T) {
+			client, err := NewClient(&Config{
+				APIKey:  "k",
+				BaseURL: defaultIonetBaseURL,
+				Model:   model,
+			})
+			require.NoError(t, err)
 
-	maxTokens := 512
-	body, err := client.marshalRequest(&Request{Model: "meta-llama/Llama-3.3-70B-Instruct", MaxTokens: &maxTokens})
-	require.NoError(t, err)
+			maxTokens := 512
+			body, err := client.marshalRequest(&Request{Model: model, MaxTokens: &maxTokens})
+			require.NoError(t, err)
 
-	var wire map[string]any
-	require.NoError(t, json.Unmarshal(body, &wire))
-	assert.Equal(t, float64(512), wire["max_tokens"])
-	_, hasRewritten := wire["max_completion_tokens"]
-	assert.False(t, hasRewritten)
+			var wire map[string]any
+			require.NoError(t, json.Unmarshal(body, &wire))
+			assert.Equal(t, float64(512), wire["max_tokens"])
+			_, hasRewritten := wire["max_completion_tokens"]
+			assert.False(t, hasRewritten)
+		})
+	}
 }

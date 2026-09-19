@@ -164,12 +164,15 @@ aiConfig := &ai.Config{
 `ai.DefaultConfig()` picks this up from `IONET_API_KEY` automatically. A key
 from a provider already configured in the environment keeps precedence. With
 no `AI_MODEL` set, the default falls back to
-`meta-llama/Llama-3.3-70B-Instruct` — io.net's catalog has no gpt-family
-models — so an io.net-only environment works out of the box.
+`meta-llama/Llama-3.3-70B-Instruct` — io.net serves no `gpt-4o` — so an
+io.net-only environment works out of the box. If you route io.net through a
+custom `AI_BASE_URL` the SDK cannot recognize as io.net (a proxy), set
+`AI_MODEL` yourself.
 
 An `ionet/` model prefix is accepted as a routing marker for callers that
-select the gateway by model string, and is stripped before the request goes
-out (the endpoint serves the bare id):
+select the gateway by model string; when the configuration points at io.net,
+the marker is stripped before the request goes out (the endpoint serves the
+bare id):
 
 ```go
 Model: "ionet/meta-llama/Llama-3.3-70B-Instruct"  // sent as meta-llama/Llama-3.3-70B-Instruct
